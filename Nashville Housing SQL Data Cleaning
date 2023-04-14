@@ -1,0 +1,158 @@
+select *
+from [Personal Projects].dbo.NashvilleHousing
+
+--------------------------------------------------------------------------------------------------------------------
+-- Standardizing Date Format
+
+alter table NashvilleHousing
+add SaleDateConverted Date
+
+update NashvilleHousing
+set SaleDateConverted = CONVERT(date,SaleDate)
+
+--------------------------------------------------------------------------------------------------------------------
+-- Populate Property Address Data
+
+select *
+from [Personal Projects].dbo.NashvilleHousing
+order by ParcelID
+-- Checking for null PropertyAddress
+select *
+from [Personal Projects].dbo.NashvilleHousing
+where PropertyAddress is null
+order by ParcelID
+
+-- Matching up the ParcelID and PropertyAddress to find the null in PropertyAddress via Join function
+/* 
+This will duplicate the table so that we can compare the ParcelID to the PropertyAddress
+*/
+select a.ParcelID, a.PropertyAddress, b.ParcelID, b.PropertyAddress
+from [Personal Projects].dbo.NashvilleHousing a
+join [Personal Projects].dbo.NashvilleHousing b
+	on a.ParcelID = b.ParcelID
+	and a.[UniqueID ] <> b.[UniqueID ]
+where a.PropertyAddress is null
+-- Using the ISNULL function to replace the null column of the PropertyAddress
+select a.ParcelID, a.PropertyAddress, b.ParcelID, b.PropertyAddress, ISNULL(a.PropertyAddress,b.PropertyAddress) 
+from [Personal Projects].dbo.NashvilleHousing a
+join [Personal Projects].dbo.NashvilleHousing b
+	on a.ParcelID = b.ParcelID
+	and a.[UniqueID ] <> b.[UniqueID ]
+where a.PropertyAddress is null
+-- Update Table
+UPDATE a
+set PropertyAddress = ISNULL(a.PropertyAddress,b.PropertyAddress) 
+from [Personal Projects].dbo.NashvilleHousing a
+join [Personal Projects].dbo.NashvilleHousing b
+	on a.ParcelID = b.ParcelID
+	and a.[UniqueID ] <> b.[UniqueID ]
+where a.PropertyAddress is null
+-- Double check to see if the null values have been replaced
+select *
+from [Personal Projects].dbo.NashvilleHousing
+where PropertyAddress is null
+order by ParcelID
+
+--------------------------------------------------------------------------------------------------------------------
+-- Splitting PropertyAddress into Individual Columns (Address, City)
+
+select PropertyAddress
+from [Personal Projects].dbo.NashvilleHousing
+
+-- Splitting out the Street Address 
+select 
+SUBSTRING(PropertyAddress, 1, charindex(',',PropertyAddress)-1) as Address
+from [Personal Projects].dbo.NashvilleHousing
+
+-- Splitting out the City
+select 
+SUBSTRING(PropertyAddress, charindex(',', PropertyAddress)+1, len(PropertyAddress)) as Address
+from [Personal Projects].dbo.NashvilleHousing
+
+/* or it can be done like this
+select 
+parsename(replace(PropertyAddress, ',', '.'), 2) as address,
+parsename(replace(PropertyAddress, ',', '.'), 1) as address
+from [Personal Projects].dbo.NashvilleHousing
+*/
+
+-- Update table
+-- Update street address
+alter table NashvilleHousing
+add PropertyAddressStreet nvarchar(255);
+
+update NashvilleHousing
+set PropertyAddressStreet = SUBSTRING(PropertyAddress, 1, charindex(',',PropertyAddress)-1)
+
+-- Update city address
+alter table NashvilleHousing
+add PropertyAddressCity nvarchar(255);
+
+update NashvilleHousing
+set PropertyAddressCity = SUBSTRING(PropertyAddress, charindex(',', PropertyAddress)+1, len(PropertyAddress))
+
+--check the table
+select *
+from [Personal Projects].dbo.NashvilleHousing
+
+--------------------------------------------------------------------------------------------------------------------
+-- Splitting OwnerAddress into Street, City, State
+
+select OwnerAddress
+from [Personal Projects].dbo.NashvilleHousing
+
+/*
+parsename only works with period, so thats why we replace commas with a period
+parsename numbering goes from right to left, ex 3 is left, 2 is middle, 1 is rigth
+*/
+select
+parsename(replace(OwnerAddress, ',', '.'), 3), -- this is the street
+parsename (replace(OwnerAddress, ',', '.'), 2), -- this is the city
+parsename (replace(OwnerAddress, ',', '.'), 1) -- this is the state
+from [Personal Projects].dbo.NashvilleHousing
+
+
+-- Update Table
+alter table NashvilleHousing
+add OwnerStreetAddress nvarchar(255);
+
+update NashvilleHousing
+set OwnerStreetAddress = parsename(replace(OwnerAddress, ',', '.'), 3)
+
+alter table NashvilleHousing
+add OwnerAddressCity nvarchar(255);
+
+update NashvilleHousing
+set OwnerAddressCity = parsename(replace(OwnerAddress, ',', '.'), 2)
+
+alter table NashvilleHousing
+add OwnerAddressState nvarchar(255);
+
+update NashvilleHousing
+set OwnerAddressState = parsename(replace(OwnerAddress, ',', '.'), 1)
+
+-- Double check the table 
+select *
+from [Personal Projects].dbo.NashvilleHousing
+
+--------------------------------------------------------------------------------------------------------------------
+-- Change Y amd N in "sold as Vacant" field
+select distinct(SoldAsVacant), count(SoldAsVacant) as AnswerCount
+from [Personal Projects].dbo.NashvilleHousing
+group by SoldAsVacant
+order by AnswerCount
+ -- There are 4 different answers, y, n, yes, no.
+
+select SoldAsVacant
+, case when SoldAsVacant = 'Y' then 'Yes'
+		when SoldAsVacant = 'N' then 'No'
+		else SoldAsVacant 
+		end
+from [Personal Projects].dbo.NashvilleHousing
+
+-- Update Table
+update NashvilleHousing
+set SoldAsVacant = case when SoldAsVacant = 'Y' then 'Yes'
+		when SoldAsVacant = 'N' then 'No'
+		else SoldAsVacant 
+		end
