@@ -1,0 +1,296 @@
+-- View all of the data
+select top 100*
+from [Google Analytics Case 1]..[trip_data]
+
+-- Deleting columns 
+alter table [Google Analytics Case 1]..[trip_data]
+drop column ride_duration
+
+--------------------------------------------------------------------------------------------------------------------
+-- ADDING COLUMNS
+-- Added a new column ride_duration 
+
+-- Checked for negative ride duration values to see if the any of the started_ at and ended_at values are mixed
+select ride_duration
+from [Google Analytics Case 1]..[trip_data]
+where ride_duration < '00:00:00';
+
+-- Creating a column to show ride duration in normal time format and thenin seconds for calculations
+alter table [Google Analytics Case 1]..[trip_data]
+add ride_duration_seconds bigint,
+ride_duration as 
+	CONVERT(nvarchar(255), DATEDIFF(SECOND, started_at, ended_at) / 3600) + ':' +
+    RIGHT('0' + CONVERT(nvarchar(255), (DATEDIFF(SECOND, started_at, ended_at) % 3600) / 60), 2) + ':' +
+    RIGHT('0' + CONVERT(nvarchar(255), DATEDIFF(SECOND, started_at, ended_at) % 60), 2)
+
+update [Google Analytics Case 1]..[trip_data]
+set ride_duration_seconds = datediff(second, started_at, ended_at);
+
+-- Add new column for hour of the day started
+alter table [Google Analytics Case 1]..[trip_data]
+add hour_started bigint;
+
+update [Google Analytics Case 1]..[trip_data]
+set hour_started = datepart(hour, started_at);
+
+-- Add new column for day of the week started
+alter table [Google Analytics Case 1]..[trip_data]
+add ride_day_of_week as datename(dw, started_at);
+
+-- Add a new column month started
+alter table [Google Analytics Case 1]..[trip_data]
+add ride_month as month(started_at)
+
+--------------------------------------------------------------------------------------------------------------------
+-- OVERALL 
+-- Number of total rides between membership types
+select count(*) as number_of_rides, member_casual
+from [Google Analytics Case 1]..[trip_data]
+group by member_casual
+
+-- Number of rides between different types of bikes
+select rideable_type as bike_type, count(rideable_type) as number_of_rides
+from [Google Analytics Case 1]..[trip_data]
+group by rideable_type
+
+
+--Number of rides between different types of bikes and membership types
+select rideable_type as bike_type, member_casual as membership_type,  count(*) as number_of_riders
+from [Google Analytics Case 1]..[trip_data]
+group by member_casual, rideable_type
+order by rideable_type
+--------------------------------------------------------------------------------------------------------------------
+-- RIDE LENGTH 
+-- Total ride length in total between membership type 
+select member_casual, sum(ride_duration_seconds)/60 as total_ride_time_minutes
+from [Google Analytics Case 1]..[trip_data]
+group by member_casual
+
+-- Total ride length per HOUR of the day between membership type
+select hour_started, member_casual, sum(ride_duration_seconds)/60 as total_ride_time_minutes
+from [Google Analytics Case 1]..[trip_data]
+group by hour_started, member_casual
+order by hour_started, member_casual
+
+-- Total ride length per DAY of the week between membership type 
+select
+	case when ride_day_of_week = 'Monday' then 1
+		 when ride_day_of_week = 'Tuesday' then 2
+		 when ride_day_of_week = 'Wednesday' then 3
+		 when ride_day_of_week = 'Thursday' then 4
+		 when ride_day_of_week = 'Friday' then 5
+		 when ride_day_of_week = 'Saturday' then 6
+		 when ride_day_of_week = 'Sunday' then 7
+	end as day_number,
+	ride_day_of_week, 
+	member_casual as membership_type, 
+	format(sum(ride_duration_seconds)/60.0,'00.00') as total_number_of_minutes
+from [Google Analytics Case 1]..[trip_data]
+group by ride_day_of_week, member_casual
+order by day_number, member_casual
+
+-- Total ride length per MONTH of the year between membership type
+select ride_month, member_casual, (sum(ride_duration_seconds)/60) as total_ride_time_minutes
+from [Google Analytics Case 1]..[trip_data]
+group by ride_month, member_casual 
+order by ride_month, member_casual 
+--------------------------------------------------------------------------------------------------------------------
+-- NUMBER OF RIDES
+-- Number or rides between different membership types
+select member_casual as membership_type, count(*) as riders
+from [Google Analytics Case 1]..[trip_data]
+group by member_casual
+
+-- Number of rides per HOUR of the day between membership type 
+select hour_started, member_casual, count(*) as number_of_rides
+from [Google Analytics Case 1]..[trip_data]
+group by hour_started, member_casual
+order by hour_started, member_casual
+
+-- Number of rides per DAY of the week between membership type
+select
+	case when ride_day_of_week = 'Monday' then 1
+		 when ride_day_of_week = 'Tuesday' then 2
+		 when ride_day_of_week = 'Wednesday' then 3
+		 when ride_day_of_week = 'Thursday' then 4
+		 when ride_day_of_week = 'Friday' then 5
+		 when ride_day_of_week = 'Saturday' then 6
+		 when ride_day_of_week = 'Sunday' then 7
+	end as day_number,
+	ride_day_of_week, 
+	member_casual as membership_type, 
+	count(*) as number_of_riders
+from [Google Analytics Case 1]..[trip_data]
+group by ride_day_of_week, member_casual
+order by day_number, member_casual
+
+-- Number of rides per MONTH of the year between membership type
+select ride_month, member_casual, count(*) as number_of_rides
+from [Google Analytics Case 1]..[trip_data]
+group by ride_month, member_casual
+order by ride_month, member_casual
+--------------------------------------------------------------------------------------------------------------------
+-- AVERAGES
+-- Average ride duration between member and casual riders in TOTAL
+select 
+	member_casual as membership_type, 
+	format(avg(ride_duration_seconds)/60.0,'00.00') as average_ride_time_minutes
+from [Google Analytics Case 1]..[trip_data]
+group by member_casual
+
+-- Average ride duration between member and casual rider PER HOUR
+select  
+	hour_started, member_casual, 
+	format(avg(ride_duration_seconds)/60.0,'00.00') as average_ride_time_minutes
+from [Google Analytics Case 1]..[trip_data]
+group by hour_started, member_casual 
+order by hour_started, member_casual
+
+
+-- Total ride length per HOUR of the day between membership type
+select hour_started, member_casual, sum(ride_duration_seconds)/60 as total_ride_time_minutes
+from [Google Analytics Case 1]..[trip_data]
+group by hour_started, member_casual
+order by hour_started, member_casual
+
+-- Average ride duration between member and casual riders per DAY of the week 
+select 
+	case when ride_day_of_week = 'Monday' then 1
+		 when ride_day_of_week = 'Tuesday' then 2
+		 when ride_day_of_week = 'Wednesday' then 3
+		 when ride_day_of_week = 'Thursday' then 4
+		 when ride_day_of_week = 'Friday' then 5
+		 when ride_day_of_week = 'Saturday' then 6
+		 when ride_day_of_week = 'Sunday' then 7
+	end as day_number,
+	ride_day_of_week, member_casual, 
+	format(avg(ride_duration_seconds)/60.0,'00.00') as average_ride_time_minutes
+from [Google Analytics Case 1]..[trip_data]
+group by ride_day_of_week, member_casual
+order by day_number, member_casual
+
+-- Average ride duration between member and casual riders per MONTH
+select 
+	ride_month, member_casual, 
+	format(avg(ride_duration_seconds)/60.0,'00.00') as average_ride_time_minutes
+from [Google Analytics Case 1]..[trip_data]
+group by ride_month, member_casual
+order by ride_month, member_casual
+
+-- Average number of rides per hour??
+-- Average number of rides per day of the week??
+--------------------------------------------------------------------------------------------------------------------
+-- STATIONS
+--------------------------------- STARTING STATIONS --------------------------------
+-- Top 25 STARTING stations 
+select start_station_name, count(start_station_name) as start_stations, start_lat, start_lng, member_casual
+from [Google Analytics Case 1]..[trip_data]
+group by start_station_name, start_lat, start_lng, member_casual
+order by start_stations desc
+offset 0 rows fetch next 25 rows only;
+
+---- Top 10 Overlapping STARTING stations for rider types
+--select distinct start_station_name, count(start_station_name) as start_stations, start_lat, start_lng, member_casual
+--from [Google Analytics Case 1]..[trip_data]
+--group by start_station_name, start_lat, start_lng, member_casual 
+--order by start_stations desc
+--offset 0 rows fetch next 10 rows only;
+
+-- Top 10 STARTING station for MEMEBERS
+select start_station_name as start_station , count(start_station_name) as start_stations, start_lat, start_lng, member_casual
+from [Google Analytics Case 1]..[trip_data]
+where member_casual = 'member'
+group by start_station_name, start_lat, start_lng, member_casual
+order by start_stations desc
+offset 0 rows fetch next 10 rows only;
+
+-- Top 10 STARTING station for CASUAL MEMBERS  
+select start_station_name, count(start_station_name) as start_stations, start_lat, start_lng, member_casual
+from [Google Analytics Case 1]..[trip_data]
+where member_casual = 'casual'
+group by start_station_name, start_lat, start_lng, member_casual
+order by start_stations desc 
+offset 0 rows fetch next 10 rows only;
+
+--------------------------------- ENDING STATIONS --------------------------------
+-- Top 25 ENDING stations 
+select end_station_name, count(end_station_name) as end_stations, end_lat, end_lng, member_casual
+from [Google Analytics Case 1]..[trip_data]
+group by end_station_name, end_lat, end_lng, member_casual
+order by end_stations desc
+offset 0 rows fetch next 25 rows only;
+
+-- Top 10 ENDING station for MEMBERS
+select end_station_name, count(end_station_name) as end_stations, end_lat, end_lng, member_casual
+from [Google Analytics Case 1]..[trip_data]
+where member_casual = 'member'
+group by end_station_name, end_lat, end_lng, member_casual
+order by end_stations desc
+--offset 0 rows fetch next 10 rows only;
+
+-- Top 10 ENDING station for CASUAL MEMBERS
+select end_station_name, count(end_station_name) as end_stations, end_lat, end_lng, member_casual
+from [Google Analytics Case 1]..[trip_data]
+where member_casual = 'casual'
+group by end_station_name, end_lat, end_lng, member_casual
+order by end_stations desc
+offset 0 rows fetch next 10 rows only;
+
+--------------------------------- ROUND TRIP STATIONS --------------------------------
+-- Top 25 stations where start and end location are the same 
+with combined_stations as (
+	select start_station_name, end_station_name, start_lat, start_lng, member_casual
+	from [Google Analytics Case 1]..[trip_data]
+	where start_station_name = end_station_name
+	)
+select 
+	start_station_name, 
+	count(start_station_name) as round_trip_station, 
+	start_lat as lattitude , 
+	start_lng as longitude, 
+	member_casual as membership_type
+from combined_stations 
+group by start_station_name, start_lat, start_lng, member_casual
+order by round_trip_station desc 
+offset 0 rows fetch next 25 rows only
+
+
+-- Top 10 stations where start and end location are the same for MEMBERS
+with combined_station as (
+	select start_station_name, end_station_name, start_lat, start_lng, member_casual
+	from[Google Analytics Case 1]..[trip_data]
+	where start_station_name = end_station_name and member_casual = 'member'
+	)
+select 
+	start_station_name, 
+	count(start_station_name) as round_trip_station, 
+	start_lat as lattitude, 
+	start_lng as longitude,
+	member_casual as membership_type
+from combined_station
+group by start_station_name, start_lat, start_lng, member_casual
+order by round_trip_station desc 
+offset 0 rows fetch next 10 rows only; 
+
+-- Top 10 stations where start and end location are the same for CASUAL MEMBERS
+with combined_station as (
+	select start_station_name, end_station_name, start_lat, start_lng, member_casual
+	from [Google Analytics Case 1]..[trip_data]
+	where start_station_name = end_station_name and member_casual = 'casual'
+	)
+select 
+	start_station_name as station_name, 
+	count(start_station_name) as round_trip_stations, 
+	start_lat as lattitude, 
+	start_lng as longitude, 
+	member_casual as membership_type
+from combined_station 
+group by start_station_name, start_lat, start_lng, member_casual
+order by round_trip_stations desc
+offset 0 rows fetch next 10 rows only;
+
+-- Likeliness of Membership type to do a round trip
+select count(*) as round_trip_stations, member_casual
+from [Google Analytics Case 1]..[trip_data]
+where start_station_name = end_station_name
+group by member_casual
