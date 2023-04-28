@@ -1,3 +1,13 @@
+/* Data Cleaning:
+Stardized Date format
+Check for nulls 
+Use Join function for find nulls from 2 different columns 
+Replace nulls using ISNULL function
+Splitting columns into multiple columns 
+Changed data value from Y/N to Sold/Vacant
+*/
+--------------------------------------------------------------------------------------------------------------------
+
 select *
 from [Personal Projects].dbo.NashvilleHousing
 
@@ -12,10 +22,10 @@ set SaleDateConverted = CONVERT(date,SaleDate)
 
 --------------------------------------------------------------------------------------------------------------------
 -- Populate Property Address Data
-
 select *
 from [Personal Projects].dbo.NashvilleHousing
 order by ParcelID
+
 -- Checking for null PropertyAddress
 select *
 from [Personal Projects].dbo.NashvilleHousing
@@ -32,6 +42,7 @@ join [Personal Projects].dbo.NashvilleHousing b
 	on a.ParcelID = b.ParcelID
 	and a.[UniqueID ] <> b.[UniqueID ]
 where a.PropertyAddress is null
+
 -- Using the ISNULL function to replace the null column of the PropertyAddress
 select a.ParcelID, a.PropertyAddress, b.ParcelID, b.PropertyAddress, ISNULL(a.PropertyAddress,b.PropertyAddress) 
 from [Personal Projects].dbo.NashvilleHousing a
@@ -39,6 +50,7 @@ join [Personal Projects].dbo.NashvilleHousing b
 	on a.ParcelID = b.ParcelID
 	and a.[UniqueID ] <> b.[UniqueID ]
 where a.PropertyAddress is null
+
 -- Update Table
 UPDATE a
 set PropertyAddress = ISNULL(a.PropertyAddress,b.PropertyAddress) 
@@ -136,7 +148,7 @@ select *
 from [Personal Projects].dbo.NashvilleHousing
 
 --------------------------------------------------------------------------------------------------------------------
--- Change Y amd N in "sold as Vacant" field
+-- Change Y amd N in "Sold as Vacant" field
 select distinct(SoldAsVacant), count(SoldAsVacant) as AnswerCount
 from [Personal Projects].dbo.NashvilleHousing
 group by SoldAsVacant
